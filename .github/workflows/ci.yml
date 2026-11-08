@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      db:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_USER: taxlens
+          POSTGRES_PASSWORD: taxlens
+          POSTGRES_DB: taxlens
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U taxlens -d taxlens"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: uv sync
+      - name: Apply schema
+        run: |
+          for f in db/init/*.sql; do
+            PGPASSWORD=taxlens psql -h localhost -U taxlens -d taxlens -v ON_ERROR_STOP=1 -f "$f"
+          done
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy
+      - run: uv run pytest

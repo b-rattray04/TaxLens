@@ -1,0 +1,21 @@
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-taxlens}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-taxlens}
+      POSTGRES_DB: ${POSTGRES_DB:-taxlens}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Runs only when the volume is empty. Use `make reset` after editing schema files.
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-taxlens} -d $${POSTGRES_DB:-taxlens}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  pgdata:
