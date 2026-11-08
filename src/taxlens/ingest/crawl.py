@@ -25,6 +25,9 @@ def part_from_url(url: str) -> str | None:
         return None
     return name[:-4]
 
+def current_pdf_urls(part_html: str, base_url: str) -> list[str]:
+    """Return absolute URLs of the current PDFs on a Part page"""
+    raise NotImplementedError
 
 def discover_pdf_urls() -> list[str]:
     raise NotImplementedError
