@@ -43,6 +43,19 @@ def current_pdf_urls(part_html: str, base_url: str) -> list[str]:
     return urls
 
 
+def part_page_urls(part_html: str, base_url: str) -> list[str]:
+    tree = LexborHTMLParser(part_html)
+    # find li elements with class liclikable, the the a elements inside them
+    nodes = tree.css("li.liclikable a")
+    urls: list[str] = []
+    for node in nodes:
+        href = node.attributes.get("href")
+        if href is None:
+            continue
+        urls.append(urljoin(base_url, href))
+    return urls
+
+
 def discover_pdf_urls() -> list[str]:
     raise NotImplementedError
 
