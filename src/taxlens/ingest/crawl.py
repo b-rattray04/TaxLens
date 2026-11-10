@@ -12,6 +12,9 @@ Done when every in-scope manual is stored and a second run downloads nothing new
 """
 
 import hashlib
+from urllib.parse import urljoin
+
+from selectolax.lexbor import LexborHTMLParser
 
 
 def sha256(data: bytes) -> str:
@@ -25,9 +28,20 @@ def part_from_url(url: str) -> str | None:
         return None
     return name[:-4]
 
+
 def current_pdf_urls(part_html: str, base_url: str) -> list[str]:
     """Return absolute URLs of the current PDFs on a Part page"""
-    raise NotImplementedError
+    tree = LexborHTMLParser(part_html)  # parse html string into searchable tree
+    nodes = tree.css("a.pdf")  # select every <a> element with class "pdf"
+    urls: list[str] = []  # collect results here
+    # for each selected element, read its href (skip if there isn't one)
+    for node in nodes:
+        href = node.attributes.get("href")  # read this nodes href
+        if href is None:
+            continue  # skip links with no href
+        urls.append(urljoin(base_url, href))  # the absolute url
+    return urls
+
 
 def discover_pdf_urls() -> list[str]:
     raise NotImplementedError

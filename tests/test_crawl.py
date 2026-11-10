@@ -1,7 +1,8 @@
-from taxlens.ingest.crawl import current_pdf_urls, part_from_url, sha256
 from pathlib import Path
 
-FIXTURES = Path(__file__).parent / "fixtures" # look at the folder the test file is in
+from taxlens.ingest.crawl import current_pdf_urls, part_from_url, sha256
+
+FIXTURES = Path(__file__).parent / "fixtures"  # look at the folder the test file is in
 html = (FIXTURES / "part01_snippet.html").read_text()
 
 
@@ -20,6 +21,7 @@ def test_part_from_url_rejects_non_pdf() -> None:
 def test_sha256_is_stable() -> None:
     assert sha256(b"abc") == sha256(b"abc")
     assert sha256(b"abc") != sha256(b"abd")
+
 
 def test_current_pdf_urls_ignore_older_versions() -> None:
     html = (FIXTURES / "part01_snippet.html").read_text()
