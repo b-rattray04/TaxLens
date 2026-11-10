@@ -41,3 +41,5 @@ markers = ["db: needs the Postgres container running (docker compose up -d)"]
 [tool.mypy]
 strict = true
 files = ["src", "tests"]
+# PyMuPDF has incomplete type hints; let strict mode accept calls into it.
+untyped_calls_exclude = ["pymupdf"]

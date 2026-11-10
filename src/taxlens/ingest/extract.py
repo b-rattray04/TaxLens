@@ -7,10 +7,16 @@ document_versions. Keep page numbers 1-based to match what a reader sees in a PD
 
 import re
 
+import pymupdf
+
 
 def extract_pages(pdf_path: str) -> list[str]:
     """Return the text of each page, in order."""
-    raise NotImplementedError
+    pages: list[str] = []
+    with pymupdf.open(pdf_path) as doc:
+        for page in doc:
+            pages.append(page.get_text())
+    return pages
 
 
 def find_last_reviewed(first_pages_text: str) -> str | None:

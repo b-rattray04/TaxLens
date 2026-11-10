@@ -1,6 +1,9 @@
+from pathlib import Path
+
+import pymupdf
 import pytest
 
-from taxlens.ingest.extract import find_last_reviewed
+from taxlens.ingest.extract import extract_pages, find_last_reviewed
 
 # The real first page of Part 02-02-03a, as PyMuPDF extracted it.
 REAL_FIRST_PAGE = """\
@@ -36,3 +39,25 @@ def test_find_last_reviewed_on_a_real_first_page() -> None:
 )
 def test_find_last_reviewed_wordings(text: str, expected: str | None) -> None:
     assert find_last_reviewed(text) == expected
+
+
+def make_pdf(path: Path, page_texts: list[str]) -> None:
+    """Write a small PDF with one page per string, so tests don't need a real manual."""
+    doc = pymupdf.open()
+    for text in page_texts:
+        page = doc.new_page()
+        page.insert_text((72, 72), text)
+    doc.save(path)
+    doc.close()
+
+
+def test_extract_pages_returns_one_string_per_page_in_order(tmp_path: Path) -> None:
+    pdf = tmp_path / "sample.pdf"
+    make_pdf(pdf, ["First page text", "Second page text", "Third page text"])
+
+    pages = extract_pages(str(pdf))
+
+    assert len(pages) == 3
+    assert "First page text" in pages[0]
+    assert "Second page text" in pages[1]
+    assert "Third page text" in pages[2]
