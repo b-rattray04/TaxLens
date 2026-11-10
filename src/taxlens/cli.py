@@ -1,8 +1,11 @@
 """Command-line entry point: `uv run taxlens --help`."""
 
+import httpx
 import typer
 
+from taxlens.config import settings
 from taxlens.db import connect
+from taxlens.ingest.crawl import run_crawl
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -24,7 +27,10 @@ def check() -> None:
 @app.command()
 def crawl() -> None:
     """Week 1 task: fetch the manual index, download new or changed PDFs."""
-    raise NotImplementedError("Week 1: implement in taxlens/ingest/crawl.py")
+    headers = {"User-Agent": settings.user_agent}
+    with httpx.Client(headers=headers, timeout=30) as client, connect() as conn:
+        new, unchanged, failed = run_crawl(client, conn)
+    typer.echo(f"new: {new}, unchanged: {unchanged}, failed: {failed}")
 
 
 @app.command()
