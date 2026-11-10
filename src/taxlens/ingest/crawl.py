@@ -125,3 +125,40 @@ def store_if_new(conn: psycopg.Connection, url: str, data: bytes) -> bool:
     )
 
     return True
+
+
+def log_fetch(
+    conn: psycopg.Connection, url: str, status_code: int | None, error: str | None
+) -> None:
+    # One INSERT into fetch_log with these three values
+    conn.execute(
+        "INSERT INTO fetch_log (url, status_code, error) VALUES (%s, %s, %s)",
+        (url, status_code, error),
+    )
+
+
+def run_crawl(client: httpx.Client, conn: psycopg.Connection) -> tuple[int, int, int]:
+    """Discover, fetch and store every current PDF. Return (new, unchanged, failed)."""
+    pdf_urls = discover_pdf_urls(client)
+    new = unchanged = failed = 0
+
+    for url in pdf_urls:
+        try:
+            data = fetch_pdf(client, url)
+        except httpx.HTTPStatusError as e:
+            log_fetch(conn, url, e.response.status_code, str(e))
+            failed += 1
+            continue
+        except (httpx.HTTPError, ValueError) as e:
+            log_fetch(conn, url, None, str(e))
+            failed += 1
+            continue
+
+        log_fetch(conn, url, 200, None)
+        if store_if_new(conn, url, data):
+            new += 1
+        else:
+            unchanged += 1
+        conn.commit()
+
+    return new, unchanged, failed
