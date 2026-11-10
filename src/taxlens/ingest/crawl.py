@@ -12,9 +12,13 @@ Done when every in-scope manual is stored and a second run downloads nothing new
 """
 
 import hashlib
+import time
 from urllib.parse import urljoin
 
+import httpx
 from selectolax.lexbor import LexborHTMLParser
+
+from taxlens.config import settings
 
 
 def sha256(data: bytes) -> str:
@@ -56,8 +60,27 @@ def part_page_urls(part_html: str, base_url: str) -> list[str]:
     return urls
 
 
-def discover_pdf_urls() -> list[str]:
-    raise NotImplementedError
+TDM = "/en/tax-professionals/tdm/income-tax-capital-gains-tax-corporation-tax"
+INDEX_URL = f"https://www.revenue.ie{TDM}/index.aspx"
+
+
+def get_html(client: httpx.Client, url: str) -> str:
+    response = client.get(url)
+    response.raise_for_status()
+    time.sleep(settings.request_delay_seconds)
+    return response.text
+
+
+def discover_pdf_urls(client: httpx.Client) -> list[str]:
+    index_html = get_html(client, INDEX_URL)
+    part_urls = part_page_urls(index_html, INDEX_URL)
+
+    pdf_urls: list[str] = []
+    for part_url in part_urls:
+        part_html = get_html(client, part_url)
+        result = current_pdf_urls(part_html, part_url)
+        pdf_urls.extend(result)
+    return pdf_urls
 
 
 def fetch_pdf(url: str) -> bytes:
