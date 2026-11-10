@@ -172,7 +172,7 @@ def test_store_if_new_stores_each_version_once(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setattr(settings, "data_dir", tmp_path)  # write PDFs to a temp folder
-    url = f"{SITE}{TDM}/part-01/01-00-01.pdf"
+    url = "https://test.invalid/tdm/part-01/01-00-01.pdf"
 
     with connect() as conn:
         assert store_if_new(conn, url, b"version one") is True
