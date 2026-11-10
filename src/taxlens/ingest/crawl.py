@@ -83,8 +83,14 @@ def discover_pdf_urls(client: httpx.Client) -> list[str]:
     return pdf_urls
 
 
-def fetch_pdf(url: str) -> bytes:
-    raise NotImplementedError
+def fetch_pdf(client: httpx.Client, url: str) -> bytes:
+    response = client.get(url)
+    response.raise_for_status()
+    content_type = response.headers.get("content-type", "")
+    if "application/pdf" not in content_type:
+        raise ValueError(f"Expected a PDF from {url}, got {content_type!r}")
+    time.sleep(settings.request_delay_seconds)
+    return response.content
 
 
 def store_if_new(url: str, data: bytes) -> bool:

@@ -9,6 +9,7 @@ from taxlens.ingest.crawl import (
     TDM,
     current_pdf_urls,
     discover_pdf_urls,
+    fetch_pdf,
     part_from_url,
     part_page_urls,
     sha256,
@@ -127,3 +128,38 @@ def test_discover_pdf_urls_follows_index_to_part_pages(monkeypatch: pytest.Monke
         f"{SITE}{TDM}/part-02/02-01-01.pdf",
         f"{SITE}{TDM}/part-02/02-01-02.pdf",
     ]
+
+
+PDF_URL = f"{SITE}{TDM}/part-01/01-00-01.pdf"
+
+
+def client_returning(response: httpx.Response) -> httpx.Client:
+    """A client whose every request gets the same canned response."""
+    return httpx.Client(transport=httpx.MockTransport(lambda request: response))
+
+
+def test_fetch_pdf_returns_the_bytes(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "request_delay_seconds", 0)
+    client = client_returning(
+        httpx.Response(200, content=b"%PDF-1.7 fake", headers={"content-type": "application/pdf"})
+    )
+
+    assert fetch_pdf(client, PDF_URL) == b"%PDF-1.7 fake"
+
+
+def test_fetch_pdf_rejects_a_non_pdf_response(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "request_delay_seconds", 0)
+    client = client_returning(
+        httpx.Response(200, text="<html>Not found</html>", headers={"content-type": "text/html"})
+    )
+
+    with pytest.raises(ValueError, match="Expected a PDF"):
+        fetch_pdf(client, PDF_URL)
+
+
+def test_fetch_pdf_raises_on_http_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(settings, "request_delay_seconds", 0)
+    client = client_returning(httpx.Response(404))
+
+    with pytest.raises(httpx.HTTPStatusError):
+        fetch_pdf(client, PDF_URL)
