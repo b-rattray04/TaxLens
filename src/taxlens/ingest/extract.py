@@ -5,6 +5,8 @@ Also look for the "last reviewed" line near the start of each manual and store i
 document_versions. Keep page numbers 1-based to match what a reader sees in a PDF viewer.
 """
 
+import re
+
 
 def extract_pages(pdf_path: str) -> list[str]:
     """Return the text of each page, in order."""
@@ -13,4 +15,7 @@ def extract_pages(pdf_path: str) -> list[str]:
 
 def find_last_reviewed(first_pages_text: str) -> str | None:
     """Return the 'last reviewed' text as printed, or None if not found."""
-    raise NotImplementedError
+    match = re.search(r"last reviewed\s+(\w+ \d{4})", first_pages_text, re.IGNORECASE)
+    if match is None:
+        return None
+    return match.group(1)
