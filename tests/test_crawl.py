@@ -4,6 +4,7 @@ import httpx
 import pytest
 
 from taxlens.config import settings
+from taxlens.db import connect
 from taxlens.ingest.crawl import (
     INDEX_URL,
     TDM,
@@ -13,6 +14,7 @@ from taxlens.ingest.crawl import (
     part_from_url,
     part_page_urls,
     sha256,
+    store_if_new,
 )
 
 FIXTURES = Path(__file__).parent / "fixtures"  # look at the folder the test file is in
@@ -163,3 +165,28 @@ def test_fetch_pdf_raises_on_http_error(monkeypatch: pytest.MonkeyPatch) -> None
 
     with pytest.raises(httpx.HTTPStatusError):
         fetch_pdf(client, PDF_URL)
+
+
+@pytest.mark.db
+def test_store_if_new_stores_each_version_once(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(settings, "data_dir", tmp_path)  # write PDFs to a temp folder
+    url = f"{SITE}{TDM}/part-01/01-00-01.pdf"
+
+    with connect() as conn:
+        assert store_if_new(conn, url, b"version one") is True
+        assert store_if_new(conn, url, b"version one") is False  # same bytes: nothing new
+        assert store_if_new(conn, url, b"version two") is True  # changed manual: new version
+
+        documents = conn.execute("SELECT count(*) FROM documents WHERE url = %s", (url,))
+        versions = conn.execute(
+            "SELECT count(*) FROM document_versions v JOIN documents d ON d.id = v.document_id "
+            "WHERE d.url = %s",
+            (url,),
+        )
+        assert documents.fetchone() == (1,)
+        assert versions.fetchone() == (2,)
+        conn.rollback()  # leave the database as we found it
+
+    assert len(list((tmp_path / "pdfs").iterdir())) == 2

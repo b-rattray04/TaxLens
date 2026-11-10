@@ -16,6 +16,7 @@ import time
 from urllib.parse import urljoin
 
 import httpx
+import psycopg
 from selectolax.lexbor import LexborHTMLParser
 
 from taxlens.config import settings
@@ -93,6 +94,34 @@ def fetch_pdf(client: httpx.Client, url: str) -> bytes:
     return response.content
 
 
-def store_if_new(url: str, data: bytes) -> bool:
+def store_if_new(conn: psycopg.Connection, url: str, data: bytes) -> bool:
     """Return True if this was a new version and was stored."""
-    raise NotImplementedError
+    content_hash = sha256(data)
+
+    row = conn.execute("SELECT id FROM documents WHERE url = %s", (url,)).fetchone()
+    if row is None:
+        row = conn.execute(
+            "INSERT INTO documents (url, part) VALUES (%s, %s) RETURNING id",
+            (url, part_from_url(url)),
+        ).fetchone()
+    assert row is not None
+    document_id = row[0]
+
+    existing = conn.execute(
+        "SELECT id FROM document_versions WHERE document_id = %s AND content_hash = %s",
+        (document_id, content_hash),
+    ).fetchone()
+    if existing is not None:
+        return False
+
+    path = settings.data_dir / "pdfs" / f"{content_hash}.pdf"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(data)
+
+    conn.execute(
+        "INSERT INTO document_versions (document_id, content_hash, storage_path) "
+        "VALUES (%s, %s, %s)",
+        (document_id, content_hash, str(path)),
+    )
+
+    return True
