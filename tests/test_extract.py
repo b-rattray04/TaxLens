@@ -35,6 +35,18 @@ def test_find_last_reviewed_on_a_real_first_page() -> None:
         ("Document last reviewed\nMarch 2023", "March 2023"),  # PDF line break mid-phrase
         ("DOCUMENT LAST REVIEWED JUNE 2022", "JUNE 2022"),  # case doesn't matter
         ("This manual has no review date at all.", None),
+        # Other wordings found in the crawled manuals
+        ("Document last updated May 2026", "May 2026"),
+        ("This document was last updated in May 2026", "May 2026"),
+        ("Document last reviewed in January 2024", "January 2024"),
+        ("Document updated last October 2024", "October 2024"),
+        ("Document reviewed September 2024", "September 2024"),
+        # Must not match: "updated" followed by something that isn't a date
+        ("Section 21B was updated by Finance Act 2024", None),
+        ("Document last updated on 27 June 2017", "June 2017"),
+        ("Document reviewed September2025", "September2025"),  # missing space in the PDF
+        ("Summary of ROS panels updated in 2020 Form 11", None),
+        ("The rate band and the rate of USC is updated for 2020.", None),
     ],
 )
 def test_find_last_reviewed_wordings(text: str, expected: str | None) -> None:

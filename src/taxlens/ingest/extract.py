@@ -11,6 +11,11 @@ import sys
 import psycopg
 import pymupdf
 
+MONTHS = "January|February|March|April|May|June|July|August|September|October|November|December"
+REVIEWED = re.compile(
+    rf"(?:reviewed|updated)(?:\s+last)?\s+(?:(?:in|on)\s+)?(?:\d{{1,2}}\s+)?((?:{MONTHS})\s*\d{{4}})",
+    re.IGNORECASE,
+)
 
 def extract_pages(pdf_path: str) -> list[str]:
     """Return the text of each page, in order."""
@@ -23,7 +28,7 @@ def extract_pages(pdf_path: str) -> list[str]:
 
 def find_last_reviewed(first_pages_text: str) -> str | None:
     """Return the 'last reviewed' text as printed, or None if not found."""
-    match = re.search(r"last reviewed\s+(\w+ \d{4})", first_pages_text, re.IGNORECASE)
+    match = REVIEWED.search(first_pages_text)
     if match is None:
         return None
     return match.group(1)
@@ -58,3 +63,21 @@ def run_extract(conn: psycopg.Connection) -> tuple[int, int]:
             failed += 1
 
     return done, failed
+
+def redetect_review_dates(conn: psycopg.Connection) -> tuple[int, int]:
+    """Re-run find_last_reviewed on stored first pages. Return (found, not_found)."""
+    rows = conn.execute(
+        "SELECT version_id, string_agg(text, E'\\n' ORDER BY page_no) "
+        "FROM pages WHERE page_no <= 2 GROUP BY version_id"
+    ).fetchall()
+    found = 0
+    for version_id, first_pages in rows:
+        date = find_last_reviewed(first_pages)
+        conn.execute(
+            "UPDATE document_versions SET last_reviewed = %s WHERE id = %s",
+            (date, version_id),
+        )
+        if date is not None:
+            found += 1
+    conn.commit()
+    return found, len(rows) - found
